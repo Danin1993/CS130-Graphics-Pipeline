@@ -100,6 +100,7 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face=0);
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3]);
 
+// Sets each pixel in the image_color array to black
 void set_render_black(driver_state& state);
 
 #endif
