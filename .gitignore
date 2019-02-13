@@ -29,6 +29,10 @@
 *.exe
 *.out
 *.app
+driver
 
 # Images
 *.png
+
+# MacOS
+.sconsign.dblite
