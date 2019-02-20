@@ -30,6 +30,11 @@ static const int MAX_FLOATS_PER_VERTEX = 64;
 
 static const int VERT_PER_TRI = 3;
 
+static const int X = 0;
+static const int Y = 1;
+static const int Z = 2;
+static const int W = 3;
+
 class driver_state;
 
 // This is the data that is stored for one vertex.  Although a real GLSL vertex
