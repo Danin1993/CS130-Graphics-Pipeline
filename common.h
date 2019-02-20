@@ -39,9 +39,9 @@ static const int MAX_FLOATS_PER_VERTEX = 64;
 #define W 3
 
 // Macros that represent vertices of a triangle
-#define A 0
-#define B 1
-#define C 2
+#define V_A 0
+#define V_B 1
+#define V_C 2
 
 class driver_state;
 
