@@ -112,4 +112,5 @@ void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
     int& i, int& j);
 
+bool is_pixel_inside(float * bary_weights);
 #endif

@@ -93,14 +93,58 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 {
     std::cout<<"TODO: implement rasterization"<<std::endl;
-    int i, j; 
+    int x[VERT_PER_TRI];
+    int y[VERT_PER_TRI];
+    // We only need to calculate the k0, k1, and k2 for alpha and beta
+    // because we can do 1 - alpha - beta to get gamma. So we only need
+    // two elements.
+    float k0[VERT_PER_TRI];
+    float k1[VERT_PER_TRI];
+    float k2[VERT_PER_TRI]; 
+    float total_area;
+    float bary[VERT_PER_TRI];
     
+    // V_Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
-        calc_pixel_coords(state, (*in)[iter], i, j);
+        calc_pixel_coords(state, (*in)[iter], x[iter], y[iter]);
         // Draw pixel at position (i, j)
-        state.image_color[i + j * state.image_width] = 
-            make_pixel(255, 255, 255);
+        //state.image_color[x[iter] + y[iter] * state.image_width] = 
+        //    make_pixel(255, 255, 255);
     }
+
+    // Draw the triangle
+    // First barycentric weights
+    total_area = .5f * ((x[V_B] * y[V_C] - x[V_C] * y[V_B]) 
+                        - (x[V_A] * y[V_C] - x[V_C] * y[V_A])
+                        - (x[V_A] * y[V_B] - x[V_B] * y[V_A]));
+
+    k0[V_A] = x[V_B] * y[V_C] - x[V_C] * y[V_B];
+    k1[V_A] = y[V_B] - y[V_C];
+    k2[V_A] = x[V_C] - x[V_B];
+
+    k0[V_B] = x[V_C] * y[V_A] - x[V_A] * y[V_C];
+    k1[V_B] = y[V_C] - y[V_A];
+    k2[V_B] = x[V_A] - x[V_C];
+
+    k0[V_C] = x[V_A] * y[V_B] - x[V_B] * y[V_A];
+    k1[V_C] = y[V_A] - y[V_B];
+    k2[V_C] = x[V_B] - x[V_A];
+
+    for (int y = 0; y < state.image_height; y++) {
+        for (int x = 0; x < state.image_width; x++) {
+            // V_Calculate barycentric weights alpha and beta
+            for (int vert = 0; vert < VERT_PER_TRI; vert++) {
+                bary[vert] = .5f * (k0[vert] + (k1[vert] * x) 
+                    + (k2[vert] * y)) / total_area;
+            }
+    
+            if (is_pixel_inside(bary)) {
+                state.image_color[x + y * state.image_width] =
+                    make_pixel(255, 255, 255);
+            }
+        }
+    }
+    
 
 }
 
@@ -132,10 +176,20 @@ void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo, 
     int& i, int& j) {
     
-    float w2 = state.image_width / 2.0f;
-    float h2 = state.image_height / 2.0f;
+    static const float w2 = state.image_width / 2.0f;
+    static const float h2 = state.image_height / 2.0f;
     // i and j might need to be floats, I'm not really sure
     // I mean it works this way, but will it always work?
-    i = w2 * data_geo.gl_Position[X] + (w2 - .5f);
-    j = h2 * data_geo.gl_Position[Y] + (h2 - .5f);
+    i = (int)(w2 * data_geo.gl_Position[X] + (w2 - .5f));
+    j = (int)(h2 * data_geo.gl_Position[Y] + (h2 - .5f));
+}
+
+bool is_pixel_inside(float * bary_weights) {
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        if (bary_weights[i] < 0) {
+            return false;
+        }
+    }
+
+    return true;
 }
