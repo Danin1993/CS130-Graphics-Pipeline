@@ -1,6 +1,5 @@
 #ifndef __DRIVER__
 #define __DRIVER__
-
 #include "common.h"
 
 struct driver_state
@@ -109,5 +108,8 @@ void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
     int & vert_index);
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
+
+void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
+    int& i, int& j);
 
 #endif

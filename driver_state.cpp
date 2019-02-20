@@ -93,6 +93,15 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 {
     std::cout<<"TODO: implement rasterization"<<std::endl;
+    int i, j; 
+    
+    for (int iter = 0; iter < VERT_PER_TRI; iter++) {
+        calc_pixel_coords(state, (*in)[iter], i, j);
+        // Draw pixel at position (i, j)
+        state.image_color[i + j * state.image_width] = 
+            make_pixel(255, 255, 255);
+    }
+
 }
 
 void set_render_black(driver_state& state) {
@@ -118,4 +127,15 @@ void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
         data_vert.data = (*data_geos)[i].data;
         state.vertex_shader(data_vert, (*data_geos)[i], state.uniform_data);
     }
+}
+
+void calc_pixel_coords(driver_state& state, const data_geometry& data_geo, 
+    int& i, int& j) {
+    
+    float w2 = state.image_width / 2.0f;
+    float h2 = state.image_height / 2.0f;
+    // i and j might need to be floats, I'm not really sure
+    // I mean it works this way, but will it always work?
+    i = w2 * data_geo.gl_Position[X] + (w2 - .5f);
+    j = h2 * data_geo.gl_Position[Y] + (h2 - .5f);
 }
