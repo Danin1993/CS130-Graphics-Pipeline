@@ -47,7 +47,8 @@ void render(driver_state& state, render_type type)
         
         for (int i = 0; i < triangles; i++) {
             fill_data_geo(state, &data_geos, vert_index);
-            rasterize_triangle(state, (const data_geometry **)(data_geos));
+            calc_data_geo_pos(state, &data_geos);
+            rasterize_triangle(state, (const data_geometry **)(&data_geos));
         }
         break;
 
@@ -109,4 +110,12 @@ void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
         vert_index += state.floats_per_vertex;
     }
     
+}
+
+void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
+    data_vertex data_vert;
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        data_vert.data = (*data_geos)[i].data;
+        state.vertex_shader(data_vert, (*data_geos)[i], state.uniform_data);
+    }
 }

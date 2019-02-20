@@ -108,4 +108,6 @@ void set_render_black(driver_state& state);
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
     int & vert_index);
 
+void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
+
 #endif
