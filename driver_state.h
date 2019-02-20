@@ -103,12 +103,9 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3]);
 // Sets each pixel in the image_color array to black
 void set_render_black(driver_state& state);
 
-// Allocate data geometry array
-data_geometry * * init_data_geo();
-
+// Fill data geometry array with pointers to vertecies from driver_state's
+// vertex_data array
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
     int & vert_index);
-
-void del_data_geo(data_geometry * * dg);
 
 #endif

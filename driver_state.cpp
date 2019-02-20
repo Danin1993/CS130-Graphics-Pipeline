@@ -101,16 +101,6 @@ void set_render_black(driver_state& state) {
     }
 }
 
-data_geometry * * init_data_geo() {
-    data_geometry * * ret = new data_geometry *[VERT_PER_TRI];
-
-    for (int i = 0; i < VERT_PER_TRI; i++) {
-        ret[i] = new data_geometry;
-    }
-
-    return ret;
-}
-
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
     int & vert_index) {
     
@@ -119,12 +109,4 @@ void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
         vert_index += state.floats_per_vertex;
     }
     
-}
-
-void del_data_geo(data_geometry * * dg) {
-    for (int i = 0; i < VERT_PER_TRI; i++) {
-        delete dg[i];
-    }
-
-    delete[] dg;
 }
