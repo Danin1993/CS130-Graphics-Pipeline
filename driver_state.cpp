@@ -92,19 +92,20 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 {
-    std::cout<<"TODO: implement rasterization"<<std::endl;
+    // x and y correspond to the x and y pixel coordinates for each
+    // vertex of the triangle.
     int x[VERT_PER_TRI];
     int y[VERT_PER_TRI];
-    // We only need to calculate the k0, k1, and k2 for alpha and beta
-    // because we can do 1 - alpha - beta to get gamma. So we only need
-    // two elements.
+    
+    // k0, k1, and k2 are the coefficients for the calculations of the
+    // areas for the barycentric coordinates
     float k0[VERT_PER_TRI];
     float k1[VERT_PER_TRI];
     float k2[VERT_PER_TRI]; 
     float total_area;
     float bary[VERT_PER_TRI];
     
-    // V_Calculate pixel coords of vertices
+    // Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
         calc_pixel_coords(state, (*in)[iter], x[iter], y[iter]);
         // Draw pixel at position (i, j)
@@ -118,6 +119,8 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                         - (x[V_A] * y[V_C] - x[V_C] * y[V_A])
                         - (x[V_A] * y[V_B] - x[V_B] * y[V_A]));
 
+    // These are constant for all pixels so let's calculate them ahead of
+    // time.
     k0[V_A] = x[V_B] * y[V_C] - x[V_C] * y[V_B];
     k1[V_A] = y[V_B] - y[V_C];
     k2[V_A] = x[V_C] - x[V_B];
@@ -130,15 +133,20 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     k1[V_C] = y[V_A] - y[V_B];
     k2[V_C] = x[V_B] - x[V_A];
 
+    // Iterate through each pixel and calculate the barycentric weights for
+    // each.
     for (int y = 0; y < state.image_height; y++) {
         for (int x = 0; x < state.image_width; x++) {
-            // V_Calculate barycentric weights alpha and beta
             for (int vert = 0; vert < VERT_PER_TRI; vert++) {
+                // Calculation is not done doing the iterative approach
+                // We're multiplying every time to find the barycentric
                 bary[vert] = .5f * (k0[vert] + (k1[vert] * x) 
                     + (k2[vert] * y)) / total_area;
             }
     
             if (is_pixel_inside(bary)) {
+                // At some point this will need to be changed to get the
+                // actual color of the pixel.
                 state.image_color[x + y * state.image_width] =
                     make_pixel(255, 255, 255);
             }
