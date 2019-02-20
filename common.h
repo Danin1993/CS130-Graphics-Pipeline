@@ -28,6 +28,8 @@ inline void from_pixel(pixel p, int& r, int& g, int& b)
 // driver.floats_per_vertex<=MAX_FLOATS_PER_VERTEX.
 static const int MAX_FLOATS_PER_VERTEX = 64;
 
+static const int VERT_PER_TRI = 3;
+
 class driver_state;
 
 // This is the data that is stored for one vertex.  Although a real GLSL vertex
