@@ -28,12 +28,20 @@ inline void from_pixel(pixel p, int& r, int& g, int& b)
 // driver.floats_per_vertex<=MAX_FLOATS_PER_VERTEX.
 static const int MAX_FLOATS_PER_VERTEX = 64;
 
+// The number of vertices in a triangle. Unless the rules of geometry change
+// this will always be 3.
 static const int VERT_PER_TRI = 3;
 
-static const int X = 0;
-static const int Y = 1;
-static const int Z = 2;
-static const int W = 3;
+// Macros that represent each coordinate of a vec
+#define X 0
+#define Y 1
+#define Z 2
+#define W 3
+
+// Macros that represent vertices of a triangle
+#define A 0
+#define B 1
+#define C 2
 
 class driver_state;
 
