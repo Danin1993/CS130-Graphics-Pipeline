@@ -35,7 +35,39 @@ void initialize_render(driver_state& state, int width, int height)
 //   render_type::strip -    The vertices are to be interpreted as a triangle strip.
 void render(driver_state& state, render_type type)
 {
+    int triangles;
+    int vert_index = 0;
     std::cout<<"TODO: implement rendering."<<std::endl;
+    
+    data_geometry * data_geos = new data_geometry[VERT_PER_TRI];
+
+    switch (type) {
+    case render_type::triangle:
+        triangles = state.num_vertices / 3;
+        
+        for (int i = 0; i < triangles; i++) {
+            fill_data_geo(state, &data_geos, vert_index);
+            rasterize_triangle(state, (const data_geometry **)(data_geos));
+        }
+        break;
+
+    case render_type::indexed:
+
+        break;
+
+    case render_type::fan:
+
+        break;
+
+    case render_type::strip:
+
+        break;
+
+    default:
+        std::cerr << "ERROR: invalid render_type specified." << std::endl;
+    }
+
+    delete[] data_geos;
 }
 
 
@@ -67,4 +99,32 @@ void set_render_black(driver_state& state) {
     for (unsigned i = 0; i < image_len; i++) {
         state.image_color[i] = make_pixel(0, 0, 0);
     }
+}
+
+data_geometry * * init_data_geo() {
+    data_geometry * * ret = new data_geometry *[VERT_PER_TRI];
+
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        ret[i] = new data_geometry;
+    }
+
+    return ret;
+}
+
+void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
+    int & vert_index) {
+    
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        (*data_geos)[i].data = state.vertex_data + vert_index;
+        vert_index += state.floats_per_vertex;
+    }
+    
+}
+
+void del_data_geo(data_geometry * * dg) {
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        delete dg[i];
+    }
+
+    delete[] dg;
 }
