@@ -43,7 +43,7 @@ void render(driver_state& state, render_type type)
 
     switch (type) {
     case render_type::triangle:
-        triangles = state.num_vertices / 3;
+        triangles = state.num_vertices / VERT_PER_TRI;
         
         for (int i = 0; i < triangles; i++) {
             fill_data_geo(state, &data_geos, vert_index);
@@ -117,7 +117,7 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     // First barycentric weights
     total_area = .5f * ((x[V_B] * y[V_C] - x[V_C] * y[V_B]) 
                         - (x[V_A] * y[V_C] - x[V_C] * y[V_A])
-                        - (x[V_A] * y[V_B] - x[V_B] * y[V_A]));
+                        + (x[V_A] * y[V_B] - x[V_B] * y[V_A]));
 
     // These are constant for all pixels so let's calculate them ahead of
     // time.
@@ -143,7 +143,7 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                 bary[vert] = .5f * (k0[vert] + (k1[vert] * x) 
                     + (k2[vert] * y)) / total_area;
             }
-    
+
             if (is_pixel_inside(bary)) {
                 // At some point this will need to be changed to get the
                 // actual color of the pixel.
@@ -201,3 +201,5 @@ bool is_pixel_inside(float * bary_weights) {
 
     return true;
 }
+
+
