@@ -204,16 +204,6 @@ void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
     j = (int)(h2 * data_geo.gl_Position[Y] + (h2 - .5f));
 }
 
-bool is_pixel_inside(float * bary_weights) {
-    for (int i = 0; i < VERT_PER_TRI; i++) {
-        if (bary_weights[i] < 0) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
      int& min_y) {
     
@@ -250,4 +240,14 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
     // min_x or max_y are greate then we set them.
     max_x = std::min(max_x, state.image_width - 1);
     max_y = std::min(max_y, state.image_height - 1);
+}
+
+bool is_pixel_inside(float * bary_weights) {
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        if (bary_weights[i] < 0) {
+            return false;
+        }
+    }
+
+    return true;
 }
