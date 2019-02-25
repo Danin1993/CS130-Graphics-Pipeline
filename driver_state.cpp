@@ -112,6 +112,8 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     
     // Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
+        // Conversion to homogenous coords (for x and y) is done in this
+        // function. Do not forget to do it for z.
         calc_pixel_coords(state, (*in)[iter], x[iter], y[iter]);
         //std::cout << "DEBUG: (" << x[iter] << ", " << y[iter] << ")\n";
     }
@@ -147,8 +149,8 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 
     // Iterate through each pixel and calculate the barycentric weights for
     // each.
-    for (int y = min_y; y < max_y; y++) {
-        for (int x = min_x; x < max_x; x++) {
+    for (int y = min_y; y < max_y + 1; y++) {
+        for (int x = min_x; x < max_x + 1; x++) {
             for (int vert = 0; vert < VERT_PER_TRI; vert++) {
                 // Calculation is not done doing the iterative approach
                 // We're multiplying every time to find the barycentric
@@ -198,10 +200,12 @@ void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
     
     static const float w2 = state.image_width / 2.0f;
     static const float h2 = state.image_height / 2.0f;
-    // i and j might need to be floats, I'm not really sure
-    // I mean it works this way, but will it always work?
-    i = (int)(w2 * data_geo.gl_Position[X] + (w2 - .5f));
-    j = (int)(h2 * data_geo.gl_Position[Y] + (h2 - .5f));
+    
+    // The conversion to homogeneous coords happens here.
+    i = (int)(w2 * data_geo.gl_Position[X] / data_geo.gl_Position[W]
+        + (w2 - .5f));
+    j = (int)(h2 * data_geo.gl_Position[Y] / data_geo.gl_Position[W]
+        + (h2 - .5f));
 }
 
 void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
@@ -237,7 +241,7 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
     }
 
     // The maximum pixel coord we can have is (width, height) so if either 
-    // min_x or max_y are greate then we set them.
+    // min_x or max_y are greater then we set them accordingly.
     max_x = std::min(max_x, state.image_width - 1);
     max_y = std::min(max_y, state.image_height - 1);
 }
