@@ -1,5 +1,7 @@
 #include "driver_state.h"
 #include <cstring>
+#include <algorithm>
+#include <climits>
 
 driver_state::driver_state()
 {
@@ -96,6 +98,9 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     // vertex of the triangle.
     int x[VERT_PER_TRI];
     int y[VERT_PER_TRI];
+
+    int min_x, min_y;
+    int max_x, max_y;
     
     // k0, k1, and k2 are the coefficients for the calculations of the
     // areas for the barycentric coordinates
@@ -108,9 +113,7 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     // Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
         calc_pixel_coords(state, (*in)[iter], x[iter], y[iter]);
-        // Draw pixel at position (i, j)
-        //state.image_color[x[iter] + y[iter] * state.image_width] = 
-        //    make_pixel(255, 255, 255);
+        //std::cout << "DEBUG: (" << x[iter] << ", " << y[iter] << ")\n";
     }
 
     // Draw the triangle
@@ -133,10 +136,19 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     k1[V_C] = y[V_A] - y[V_B];
     k2[V_C] = x[V_B] - x[V_A];
 
+    // Calculate the min and max coordinates to iterate through
+    calc_min_coord(state, x, y, min_x, min_y);
+    calc_max_coord(state, x, y, max_x, max_y);
+
+    /*
+    std::cout << "DEBUG: min: (" << min_x << ", " << min_y << ")\n";
+    std::cout << "DEBUG: max: (" << max_x << ", " << max_y << ")";
+    */
+
     // Iterate through each pixel and calculate the barycentric weights for
     // each.
-    for (int y = 0; y < state.image_height; y++) {
-        for (int x = 0; x < state.image_width; x++) {
+    for (int y = min_y; y < max_y; y++) {
+        for (int x = min_x; x < max_x; x++) {
             for (int vert = 0; vert < VERT_PER_TRI; vert++) {
                 // Calculation is not done doing the iterative approach
                 // We're multiplying every time to find the barycentric
@@ -202,4 +214,40 @@ bool is_pixel_inside(float * bary_weights) {
     return true;
 }
 
+void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
+     int& min_y) {
+    
+    // The maximum pixel coord we can have is (width - 1, height - 1), so
+    // set the starting values to those
+    min_x = state.image_width - 1;
+    min_y = state.image_height - 1;
 
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        min_x = std::min(min_x, x[i]);
+        min_y = std::min(min_y, y[i]);
+    }
+
+    // The minimum pixel coord we can have is (0, 0) so if either min_x or 
+    // min_y are negative we set them to 0.
+    min_x = std::max(min_x, 0);
+    min_y = std::max(min_y, 0);
+}
+
+void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
+    int& max_y) {
+    
+    // The minimum pixel coord we can have is (0, 0), so set the starting
+    // value to 0, 0; 
+    max_x = 0;
+    max_y = 0;
+
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        max_x = std::max(max_x, x[i]);
+        max_y = std::max(max_y, y[i]);
+    }
+
+    // The maximum pixel coord we can have is (width, height) so if either 
+    // min_x or max_y are greate then we set them.
+    max_x = std::min(max_x, state.image_width - 1);
+    max_y = std::min(max_y, state.image_height - 1);
+}

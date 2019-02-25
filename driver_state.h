@@ -113,4 +113,13 @@ void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
     int& i, int& j);
 
 bool is_pixel_inside(float * bary_weights);
+
+// Calculates the minimum x and y pixel coordinates for the given triangle
+void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
+    int& min_y);
+
+// Calculates the maximum x and y pixel coordinates for the given triangle
+void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
+    int& max_y);
+
 #endif
