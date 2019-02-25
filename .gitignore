@@ -36,6 +36,7 @@ driver
 
 # MacOS
 .sconsign.dblite
+.DS_store
 
 # Grading
 grading/
