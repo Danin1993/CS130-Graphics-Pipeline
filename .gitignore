@@ -39,3 +39,6 @@ driver
 
 # Grading
 grading/
+
+# Rendering
+all-outputs/
