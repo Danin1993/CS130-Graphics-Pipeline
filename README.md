@@ -3,7 +3,8 @@ A project in which the rendering pipeline method is used to render objects
 to the screen.
 
 ## Features
-None yet because I've just started. Hooray!
+Rasterize multiple triangles. Currently triangles can only be rendered plain
+and white. No perspective has been implemented yet.
 
 ## Requirements
 SCons is required to build this project.
