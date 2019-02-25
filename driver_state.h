@@ -1,6 +1,5 @@
 #ifndef __DRIVER__
 #define __DRIVER__
-
 #include "common.h"
 
 struct driver_state
@@ -99,5 +98,28 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face=0);
 // function is responsible for rasterization, interpolation of data to
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3]);
+
+// Sets each pixel in the image_color array to black
+void set_render_black(driver_state& state);
+
+// Fill data geometry array with pointers to vertecies from driver_state's
+// vertex_data array
+void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
+    int & vert_index);
+
+void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
+
+void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
+    int& i, int& j);
+
+// Calculates the minimum x and y pixel coordinates for the given triangle
+void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
+    int& min_y);
+
+// Calculates the maximum x and y pixel coordinates for the given triangle
+void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
+    int& max_y);
+
+bool is_pixel_inside(float * bary_weights);
 
 #endif

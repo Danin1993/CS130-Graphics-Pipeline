@@ -28,6 +28,21 @@ inline void from_pixel(pixel p, int& r, int& g, int& b)
 // driver.floats_per_vertex<=MAX_FLOATS_PER_VERTEX.
 static const int MAX_FLOATS_PER_VERTEX = 64;
 
+// The number of vertices in a triangle. Unless the rules of geometry change
+// this will always be 3.
+#define VERT_PER_TRI 3
+
+// Macros that represent each coordinate of a vec
+#define X 0
+#define Y 1
+#define Z 2
+#define W 3
+
+// Macros that represent vertices of a triangle
+#define V_A 0
+#define V_B 1
+#define V_C 2
+
 class driver_state;
 
 // This is the data that is stored for one vertex.  Although a real GLSL vertex

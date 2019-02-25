@@ -29,6 +29,17 @@
 *.exe
 *.out
 *.app
+driver
 
 # Images
 *.png
+
+# MacOS
+.sconsign.dblite
+.DS_store
+
+# Grading
+grading/
+
+# Rendering
+all-outputs/
