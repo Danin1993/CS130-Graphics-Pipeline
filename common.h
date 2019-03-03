@@ -43,6 +43,12 @@ static const int MAX_FLOATS_PER_VERTEX = 64;
 #define V_B 1
 #define V_C 2
 
+// Macros that represent RGB indecies
+#define C_R 0
+#define C_G 1
+#define C_B 2
+#define C_MAX 255
+
 class driver_state;
 
 // This is the data that is stored for one vertex.  Although a real GLSL vertex
