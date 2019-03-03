@@ -262,22 +262,39 @@ bool is_pixel_inside(float * bary_weights) {
 pixel get_pixel_color(driver_state& state, 
     const data_geometry * data_geos[3], float * screen_bary) {
     
+    float world_bary[VERT_PER_TRI];
     data_output out;
     data_fragment frag;
+
+    // Allocate an array to hold the interpolated data
     frag.data = new float[MAX_FLOATS_PER_VERTEX];
 
+    // For each float in the vertex we have to interpolate data depending
+    // on the interp_rule associated with it.
     for (int i = 0; i < state.floats_per_vertex; i++) {
         switch (state.interp_rules[i]) {
+        
+        // If the interpolation rule is flat then set all data floats equal
+        // to the data of the first vertex
         case interp_type::flat:
-            frag.data[i] = (*data_geos)[0].data[i];
+            frag.data[i] = (*data_geos)[V_A].data[i];
             break;
 
+        // If the interpolation rule is smooth then we want perspective
+        // correct interpolation
         case interp_type::smooth:
-
+            // Convert the bary centric coordinates we calculated previously
+            // in screen space back to world space
+            convert_from_screen(screen_bary, world_bary, data_geos);
+            frag.data[i] = interpolate_fragment_at(i, data_geos, 
+                world_bary);
             break;
 
+        // If the interpolation rule is noperspective then we just want
+        // interpolation based on our screen space barycentric coordinates
         case interp_type::noperspective:
-
+            frag.data[i] = interpolate_fragment_at(i, data_geos,
+                screen_bary);
             break;
 
         default:
@@ -286,16 +303,40 @@ pixel get_pixel_color(driver_state& state,
         }
     }
 
+    // Call our fragment shader with the data we just interpolated
     state.fragment_shader(frag, out, state.uniform_data);
 
+    // Don't forget to delete our allocated memory!
     delete[] frag.data;
-
-    std::cout << "DEBUG: output_color" << std::endl;
-    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
-        std::cout << out.output_color[i] << std::endl;
-    }
-
-    return make_pixel(out.output_color[0] * 255, out.output_color[1] * 255,
-        out.output_color[2] * 255);
+    
+    // Multiply the output by C_MAX (255) because output_color returns a
+    // value [0, 1]
+    return make_pixel(out.output_color[C_R] * C_MAX, out.output_color[C_G] 
+        * C_MAX, out.output_color[C_B] * C_MAX);
 }
 
+
+float interpolate_fragment_at(unsigned index,
+    const data_geometry * data_geos[3], float * bary) {
+    float ret = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        ret += bary[i] * (*data_geos)[i].data[index];
+    }
+
+    return ret;
+}
+
+void convert_from_screen(float * screen_bary, float * world_bary, 
+    const data_geometry * data_geos[3]) {
+    float k = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        k += screen_bary[i] / (*data_geos)[i].gl_Position[W];
+    }
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        world_bary[i] = screen_bary[i] / ((*data_geos)[i].gl_Position[W]
+            * k);
+    }
+}

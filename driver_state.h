@@ -122,10 +122,18 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
 
 bool is_pixel_inside(float * bary_weights);
 
+// Fills data_fragment's data array with interpolated data then calls the
+// state's fragment shader on the interpolated data
 pixel get_pixel_color(driver_state& state, 
     const data_geometry * data_geos[3], float * screen_bary); 
 
-float interpolate_gouraud(const data_geometry * data_geos[3], float * bary);
+// Calculates the interpolated data at the specified float of the vertex
+float interpolate_fragment_at(unsigned index, 
+    const data_geometry * data_geos[3], float * bary);
 
+// Calculates the world space barycentric coordinates from the screen space
+// barycentric coordinates 
+void convert_from_screen(float * screen_bary, float * world_bary,
+    const data_geometry * data_geos[3]);
 
 #endif
