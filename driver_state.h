@@ -122,4 +122,10 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
 
 bool is_pixel_inside(float * bary_weights);
 
+pixel get_pixel_color(driver_state& state, 
+    const data_geometry * data_geos[3], float * screen_bary); 
+
+float interpolate_gouraud(const data_geometry * data_geos[3], float * bary);
+
+
 #endif

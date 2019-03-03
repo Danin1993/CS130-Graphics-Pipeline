@@ -67,7 +67,7 @@ void render(driver_state& state, render_type type)
         break;
 
     default:
-        std::cerr << "ERROR: invalid render_type specified." << std::endl;
+        std::cerr << "ERROR: Invalid render_type specified." << std::endl;
     }
 
     delete[] data_geos;
@@ -162,7 +162,10 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                 // At some point this will need to be changed to get the
                 // actual color of the pixel.
                 state.image_color[x + y * state.image_width] =
-                    make_pixel(255, 255, 255);
+                /*    make_pixel(255, 255, 255);
+                /**/
+                    get_pixel_color(state, in, bary);
+                /**/
             }
         }
     }
@@ -255,3 +258,44 @@ bool is_pixel_inside(float * bary_weights) {
 
     return true;
 }
+
+pixel get_pixel_color(driver_state& state, 
+    const data_geometry * data_geos[3], float * screen_bary) {
+    
+    data_output out;
+    data_fragment frag;
+    frag.data = new float[MAX_FLOATS_PER_VERTEX];
+
+    for (int i = 0; i < state.floats_per_vertex; i++) {
+        switch (state.interp_rules[i]) {
+        case interp_type::flat:
+            frag.data[i] = (*data_geos)[0].data[i];
+            break;
+
+        case interp_type::smooth:
+
+            break;
+
+        case interp_type::noperspective:
+
+            break;
+
+        default:
+            std::cerr << "ERROR: Invalid interp_type specified.\n";
+            break;
+        }
+    }
+
+    state.fragment_shader(frag, out, state.uniform_data);
+
+    delete[] frag.data;
+
+    std::cout << "DEBUG: output_color" << std::endl;
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        std::cout << out.output_color[i] << std::endl;
+    }
+
+    return make_pixel(out.output_color[0] * 255, out.output_color[1] * 255,
+        out.output_color[2] * 255);
+}
+
