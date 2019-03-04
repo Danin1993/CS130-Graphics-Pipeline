@@ -2,6 +2,7 @@
 #include <cstring>
 #include <algorithm>
 #include <climits>
+#include <cfloat>
 
 driver_state::driver_state()
 {
@@ -22,10 +23,14 @@ void initialize_render(driver_state& state, int width, int height)
     state.image_height=height;
     state.image_color=0;
     state.image_depth=0;
-    std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
     
-    state.image_color = new pixel[width * height];
+    state.image_len = width * height;
+
+    state.image_color = new pixel[state.image_len];
     set_render_black(state);
+
+    state.image_depth = new float[state.image_len];
+    init_image_depth(state);
 }
 
 // This function will be called to render the data that has been stored in this class.
@@ -181,12 +186,27 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 
 }
 
+
+/**************************************************************************/
+/* Initialization */
+/**************************************************************************/
+
 void set_render_black(driver_state& state) {
-    int image_len = state.image_width * state.image_height;
-    for (unsigned i = 0; i < image_len; i++) {
+    for (unsigned i = 0; i < state.image_len; i++) {
         state.image_color[i] = make_pixel(0, 0, 0);
     }
 }
+
+void init_image_depth(driver_state& state) {
+    for (unsigned i = 0; i < state.image_len; i++) {
+        state.image_depth[i] = FLT_MAX;
+    }
+}
+
+
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
 
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
     int & vert_index) {
@@ -266,6 +286,11 @@ bool is_pixel_inside(float * bary_weights) {
 
     return true;
 }
+
+
+/**************************************************************************/
+/* Fragment Shader */
+/**************************************************************************/
 
 pixel get_pixel_color(driver_state& state, data_fragment& frag,
     const data_geometry * data_geos[3], float * screen_bary) {

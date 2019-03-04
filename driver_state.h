@@ -47,6 +47,9 @@ struct driver_state
     int image_width = 0;
     int image_height = 0;
 
+    // Convenience var for length of arrays
+    int image_len = 0;
+
     // Buffer where color data is stored.  The first image_width entries
     // correspond to the bottom row of the image, the next image_width entries
     // correspond to the next row, etc.  The array has image_width*image_height
@@ -99,8 +102,20 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face=0);
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3]);
 
+/**************************************************************************/
+/* Initialization */
+/**************************************************************************/
+
 // Sets each pixel in the image_color array to black
 void set_render_black(driver_state& state);
+
+// Sets each element of image_depth to FLOAT_MAX
+void init_image_depth(driver_state& state);
+
+
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
 
 // Fill data geometry array with pointers to vertecies from driver_state's
 // vertex_data array
@@ -121,6 +136,11 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
     int& max_y);
 
 bool is_pixel_inside(float * bary_weights);
+
+
+/**************************************************************************/
+/* Fragment Shader */
+/**************************************************************************/
 
 // Fills data_fragment's data array with interpolated data then calls the
 // state's fragment shader on the interpolated data
