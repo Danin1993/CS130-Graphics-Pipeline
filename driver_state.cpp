@@ -2,6 +2,7 @@
 #include <cstring>
 #include <algorithm>
 #include <climits>
+#include <cfloat>
 
 driver_state::driver_state()
 {
@@ -22,10 +23,14 @@ void initialize_render(driver_state& state, int width, int height)
     state.image_height=height;
     state.image_color=0;
     state.image_depth=0;
-    std::cout<<"TODO: allocate and initialize state.image_color and state.image_depth."<<std::endl;
     
-    state.image_color = new pixel[width * height];
+    state.image_len = width * height;
+
+    state.image_color = new pixel[state.image_len];
     set_render_black(state);
+
+    state.image_depth = new float[state.image_len];
+    init_image_depth(state);
 }
 
 // This function will be called to render the data that has been stored in this class.
@@ -67,7 +72,7 @@ void render(driver_state& state, render_type type)
         break;
 
     default:
-        std::cerr << "ERROR: invalid render_type specified." << std::endl;
+        std::cerr << "ERROR: Invalid render_type specified." << std::endl;
     }
 
     delete[] data_geos;
@@ -99,8 +104,13 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     int x[VERT_PER_TRI];
     int y[VERT_PER_TRI];
 
+    // z holds the perspective transformed z coordinates for each vertex
+    float z[VERT_PER_TRI];
+    float depth;
+
     int min_x, min_y;
     int max_x, max_y;
+
     
     // k0, k1, and k2 are the coefficients for the calculations of the
     // areas for the barycentric coordinates
@@ -109,7 +119,13 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     float k2[VERT_PER_TRI]; 
     float total_area;
     float bary[VERT_PER_TRI];
+
+    // Define and alloc the data_frag for later
+    data_fragment frag;
+    // Allocate an array to hold the interpolated data
+    frag.data = new float[MAX_FLOATS_PER_VERTEX];
     
+
     // Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
         // Conversion to homogenous coords (for x and y) is done in this
@@ -158,24 +174,48 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                     + (k2[vert] * y)) / total_area;
             }
 
-            if (is_pixel_inside(bary)) {
-                // At some point this will need to be changed to get the
-                // actual color of the pixel.
+
+            calc_z_coords(in, z);
+            depth = calc_depth_at(z, bary);
+
+            // Only draw if the pixel is inside the triangle and it is the
+            // closest triangle to the camera
+            if (is_pixel_inside(bary) && 
+                depth < state.image_depth[x + y * state.image_width]) {
+
                 state.image_color[x + y * state.image_width] =
-                    make_pixel(255, 255, 255);
+                    get_pixel_color(state, frag, in, bary);
+                state.image_depth[x + y * state.image_width] = depth;
             }
         }
     }
-    
+
+    // Don't forget to delete our allocated memory!  
+    delete[] frag.data;
 
 }
 
+
+/**************************************************************************/
+/* Initialization */
+/**************************************************************************/
+
 void set_render_black(driver_state& state) {
-    int image_len = state.image_width * state.image_height;
-    for (unsigned i = 0; i < image_len; i++) {
+    for (unsigned i = 0; i < state.image_len; i++) {
         state.image_color[i] = make_pixel(0, 0, 0);
     }
 }
+
+void init_image_depth(driver_state& state) {
+    for (unsigned i = 0; i < state.image_len; i++) {
+        state.image_depth[i] = FLT_MAX;
+    }
+}
+
+
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
 
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
     int & vert_index) {
@@ -254,4 +294,117 @@ bool is_pixel_inside(float * bary_weights) {
     }
 
     return true;
+}
+
+
+/**************************************************************************/
+/* Fragment Shader */
+/**************************************************************************/
+
+pixel get_pixel_color(driver_state& state, data_fragment& frag,
+    const data_geometry * data_geos[3], float * screen_bary) {
+    
+    float world_bary[VERT_PER_TRI];
+    data_output out;
+
+/*
+    // Allocate an array to hold the interpolated data
+    frag.data = new float[MAX_FLOATS_PER_VERTEX];
+*/
+
+    // For each float in the vertex we have to interpolate data depending
+    // on the interp_rule associated with it.
+    for (int i = 0; i < state.floats_per_vertex; i++) {
+        switch (state.interp_rules[i]) {
+        
+        // If the interpolation rule is flat then set all data floats equal
+        // to the data of the first vertex
+        case interp_type::flat:
+            frag.data[i] = (*data_geos)[V_A].data[i];
+            break;
+
+        // If the interpolation rule is smooth then we want perspective
+        // correct interpolation
+        case interp_type::smooth:
+            // Convert the bary centric coordinates we calculated previously
+            // in screen space back to world space
+            convert_from_screen(screen_bary, world_bary, data_geos);
+            frag.data[i] = interpolate_fragment_at(i, data_geos, 
+                world_bary);
+            break;
+
+        // If the interpolation rule is noperspective then we just want
+        // interpolation based on our screen space barycentric coordinates
+        case interp_type::noperspective:
+            frag.data[i] = interpolate_fragment_at(i, data_geos,
+                screen_bary);
+            break;
+
+        default:
+            std::cerr << "ERROR: Invalid interp_type specified.\n";
+            break;
+        }
+    }
+
+    // Call our fragment shader with the data we just interpolated
+    state.fragment_shader(frag, out, state.uniform_data);
+
+/*
+    // Don't forget to delete our allocated memory!
+    delete[] frag.data;
+*/  
+  
+    // Multiply the output by C_MAX (255) because output_color returns a
+    // value [0, 1]
+    return make_pixel(out.output_color[C_R] * C_MAX, out.output_color[C_G] 
+        * C_MAX, out.output_color[C_B] * C_MAX);
+}
+
+
+float interpolate_fragment_at(unsigned index,
+    const data_geometry * data_geos[3], float * bary) {
+    float ret = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        ret += bary[i] * (*data_geos)[i].data[index];
+    }
+
+    return ret;
+}
+
+void convert_from_screen(float * screen_bary, float * world_bary, 
+    const data_geometry * data_geos[3]) {
+    float k = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        k += screen_bary[i] / (*data_geos)[i].gl_Position[W];
+    }
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        world_bary[i] = screen_bary[i] / ((*data_geos)[i].gl_Position[W]
+            * k);
+    }
+}
+
+
+/**************************************************************************/
+/* Z-Buffer */
+/**************************************************************************/
+
+void calc_z_coords(const data_geometry * data_geos[3], float * z) {
+    
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        z[i] = (*data_geos)[i].gl_Position[Z] 
+            / (*data_geos)[i].gl_Position[W];
+    }
+}
+
+float calc_depth_at(float * z, float * bary) {
+    float ret = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        ret += z[i] * bary[i];
+    }
+
+    return ret;
 }
