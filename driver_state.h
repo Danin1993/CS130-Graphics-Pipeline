@@ -124,7 +124,7 @@ bool is_pixel_inside(float * bary_weights);
 
 // Fills data_fragment's data array with interpolated data then calls the
 // state's fragment shader on the interpolated data
-pixel get_pixel_color(driver_state& state, 
+pixel get_pixel_color(driver_state& state, data_fragment& frag,
     const data_geometry * data_geos[3], float * screen_bary); 
 
 // Calculates the interpolated data at the specified float of the vertex

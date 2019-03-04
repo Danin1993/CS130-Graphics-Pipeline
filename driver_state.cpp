@@ -109,7 +109,13 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     float k2[VERT_PER_TRI]; 
     float total_area;
     float bary[VERT_PER_TRI];
+
+    // Define and alloc the data_frag for later
+    data_fragment frag;
+    // Allocate an array to hold the interpolated data
+    frag.data = new float[MAX_FLOATS_PER_VERTEX];
     
+
     // Calculate pixel coords of vertices
     for (int iter = 0; iter < VERT_PER_TRI; iter++) {
         // Conversion to homogenous coords (for x and y) is done in this
@@ -164,12 +170,14 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                 state.image_color[x + y * state.image_width] =
                 /*    make_pixel(255, 255, 255);
                 /**/
-                    get_pixel_color(state, in, bary);
+                    get_pixel_color(state, frag, in, bary);
                 /**/
             }
         }
     }
-    
+
+    // Don't forget to delete our allocated memory!  
+    delete[] frag.data;
 
 }
 
@@ -259,15 +267,16 @@ bool is_pixel_inside(float * bary_weights) {
     return true;
 }
 
-pixel get_pixel_color(driver_state& state, 
+pixel get_pixel_color(driver_state& state, data_fragment& frag,
     const data_geometry * data_geos[3], float * screen_bary) {
     
     float world_bary[VERT_PER_TRI];
     data_output out;
-    data_fragment frag;
 
+/*
     // Allocate an array to hold the interpolated data
     frag.data = new float[MAX_FLOATS_PER_VERTEX];
+*/
 
     // For each float in the vertex we have to interpolate data depending
     // on the interp_rule associated with it.
@@ -306,9 +315,11 @@ pixel get_pixel_color(driver_state& state,
     // Call our fragment shader with the data we just interpolated
     state.fragment_shader(frag, out, state.uniform_data);
 
+/*
     // Don't forget to delete our allocated memory!
     delete[] frag.data;
-    
+*/  
+  
     // Multiply the output by C_MAX (255) because output_color returns a
     // value [0, 1]
     return make_pixel(out.output_color[C_R] * C_MAX, out.output_color[C_G] 
