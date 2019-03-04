@@ -156,4 +156,12 @@ float interpolate_fragment_at(unsigned index,
 void convert_from_screen(float * screen_bary, float * world_bary,
     const data_geometry * data_geos[3]);
 
+
+/**************************************************************************/
+/* Z-Buffer */
+/**************************************************************************/
+void calc_z_coords(const data_geometry * data_geos[3], float * z);
+
+float calc_depth_at(float * z, float * bary);
+
 #endif

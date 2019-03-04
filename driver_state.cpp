@@ -104,8 +104,13 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
     int x[VERT_PER_TRI];
     int y[VERT_PER_TRI];
 
+    // z holds the perspective transformed z coordinates for each vertex
+    float z[VERT_PER_TRI];
+    float depth;
+
     int min_x, min_y;
     int max_x, max_y;
+
     
     // k0, k1, and k2 are the coefficients for the calculations of the
     // areas for the barycentric coordinates
@@ -169,14 +174,18 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
                     + (k2[vert] * y)) / total_area;
             }
 
-            if (is_pixel_inside(bary)) {
-                // At some point this will need to be changed to get the
-                // actual color of the pixel.
+
+            calc_z_coords(in, z);
+            depth = calc_depth_at(z, bary);
+
+            // Only draw if the pixel is inside the triangle and it is the
+            // closest triangle to the camera
+            if (is_pixel_inside(bary) && 
+                depth < state.image_depth[x + y * state.image_width]) {
+
                 state.image_color[x + y * state.image_width] =
-                /*    make_pixel(255, 255, 255);
-                /**/
                     get_pixel_color(state, frag, in, bary);
-                /**/
+                state.image_depth[x + y * state.image_width] = depth;
             }
         }
     }
@@ -375,4 +384,27 @@ void convert_from_screen(float * screen_bary, float * world_bary,
         world_bary[i] = screen_bary[i] / ((*data_geos)[i].gl_Position[W]
             * k);
     }
+}
+
+
+/**************************************************************************/
+/* Z-Buffer */
+/**************************************************************************/
+
+void calc_z_coords(const data_geometry * data_geos[3], float * z) {
+    
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        z[i] = (*data_geos)[i].gl_Position[Z] 
+            / (*data_geos)[i].gl_Position[W];
+    }
+}
+
+float calc_depth_at(float * z, float * bary) {
+    float ret = 0;
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        ret += z[i] * bary[i];
+    }
+
+    return ret;
 }
