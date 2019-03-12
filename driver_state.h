@@ -122,6 +122,9 @@ void init_image_depth(driver_state& state);
 void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
     int & vert_index);
 
+void fill_data_geos_indexed(driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
+
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
@@ -164,4 +167,47 @@ void calc_z_coords(const data_geometry * data_geos[3], float * z);
 
 float calc_depth_at(float * z, float * bary);
 
+
+/**************************************************************************/
+/* Clipping */
+/**************************************************************************/
+// Calls remove_data_geo on each index, then clears the vector.
+void clear_data_geos(std::vector<data_geometry *>& tris);
+
+// Deletes the allocated data array for each geometry, then deletes the
+// data_geometry array at the specified index
+void remove_data_geo(unsigned index, std::vector<data_geometry *>& tris);
+
+// Add a new data_geometry array to the vector using data from the data_geos
+// Data is copied.
+void add_data_geos(const driver_state& state,
+    std::vector<data_geometry *>& tris, const data_geometry * data_geos[3]);
+
+// Add a new data_geometry array to the vector from 3 gl_Positions
+void add_data_geos(std::vector<data_geometry *>& tris, vec4 a, vec4 b, 
+    vec4 c);
+
+// Copy each float from one data_geometry's data to another
+void copy_data_geos_data(const driver_state& state,
+    const data_geometry& from, data_geometry& to);
+
+// Convenience function to check if all vertices are inside
+bool all_inside(bool * inside);
+
+// Convenience function to check if all vertices are outside
+bool all_outside(bool * inside);
+
+// Create a new triangle with two vertices outside of the plane 
+void create_triangle_2_out(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned in_index, unsigned out0_index,
+    unsigned out1_index, const driver_state& state);
+
+// Create two new triangle with two vertices inside of the plane
+void create_triangle_2_in(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned out_index, unsigned in0_index,
+    unsigned in1_index, const driver_state& state);
+
+float interpolate_data(float weight, float data0, float data1);
+
+float calc_noperspective_weight(float weight, float a_w, float p_w);
 #endif
