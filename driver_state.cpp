@@ -258,13 +258,13 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 /**************************************************************************/
 
 void set_render_black(driver_state& state) {
-    for (unsigned i = 0; i < state.image_len; i++) {
+    for (int i = 0; i < state.image_len; i++) {
         state.image_color[i] = make_pixel(0, 0, 0);
     }
 }
 
 void init_image_depth(driver_state& state) {
-    for (unsigned i = 0; i < state.image_len; i++) {
+    for (int i = 0; i < state.image_len; i++) {
         state.image_depth[i] = FLT_MAX;
     }
 }
@@ -498,7 +498,7 @@ void add_data_geos(const driver_state& state,
                 (*data_geos)[i].gl_Position[j];
         }
 
-        for (unsigned j = 0; j < state.floats_per_vertex; j++) {
+        for (int j = 0; j < state.floats_per_vertex; j++) {
             tris[tris.size() - 1][i].data[j] = tris[0][i].data[j];
         }
     }
@@ -523,7 +523,7 @@ void add_data_geos(std::vector<data_geometry *>& tris, vec4 a, vec4 b,
 void copy_data_geos_data(const driver_state& state,
     const data_geometry& from, data_geometry& to) {
 
-    for (unsigned i = 0; i < state.floats_per_vertex; i++) {
+    for (int i = 0; i < state.floats_per_vertex; i++) {
         to.data[i] = from.data[i];
     }
 }
