@@ -185,8 +185,8 @@ void add_data_geos(const driver_state& state,
     std::vector<data_geometry *>& tris, const data_geometry * data_geos[3]);
 
 // Add a new data_geometry array to the vector from 3 gl_Positions
-void add_data_geos(std::vector<data_geometry *>& tris, vec4 a, vec4 b, 
-    vec4 c);
+void add_data_geos(std::vector<data_geometry *>& tris, const vec4& a, 
+    const vec4& b, const vec4& c);
 
 // Copy each float from one data_geometry's data to another
 void copy_data_geos_data(const driver_state& state,
@@ -211,4 +211,7 @@ void create_triangle_2_in(std::vector<data_geometry *>& tris,
 float interpolate_data(float weight, float data0, float data1);
 
 float calc_noperspective_weight(float weight, float a_w, float p_w);
+
+void print_data_geos(const data_geometry * data_geos[3]);
+
 #endif
