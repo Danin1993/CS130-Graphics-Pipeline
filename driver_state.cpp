@@ -61,7 +61,6 @@ void render(driver_state& state, render_type type)
         break;
 
     case render_type::indexed:
-        triangles = state.num_vertices / VERT_PER_TRI;
         for (int i = 0; i < state.num_triangles; i++) {
             fill_data_geos_indexed(state, &data_geos, vert_index); 
             calc_data_geo_pos(state, &data_geos);
@@ -70,7 +69,14 @@ void render(driver_state& state, render_type type)
         break;
 
     case render_type::fan:
-
+        triangles = state.num_vertices - 2;
+        vert_index = 1;
+        data_geos[0].data = state.vertex_data;
+        for (int i = 0; i < triangles; i++) {
+            fill_data_geos_fan(state, &data_geos, vert_index);
+            calc_data_geo_pos(state, &data_geos);
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        }       
         break;
 
     case render_type::strip:
@@ -298,6 +304,17 @@ void fill_data_geos_indexed(driver_state& state,
             + state.index_data[vert_index] * state.floats_per_vertex;
         vert_index++;
     }
+}
+
+void fill_data_geos_fan(driver_state& state, data_geometry * data_geos[3],
+    int & vert_index) {
+
+    for (int i = 1; i < VERT_PER_TRI; i++) {
+        (*data_geos)[i].data = state.vertex_data + (vert_index
+            * state.floats_per_vertex);
+        vert_index++;
+    }
+    vert_index--;
 }
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {

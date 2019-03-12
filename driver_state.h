@@ -126,6 +126,9 @@ void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
 void fill_data_geos_indexed(driver_state& state,
     data_geometry * data_geos[3], int & vert_index);
 
+void fill_data_geos_fan(driver_state& state, data_geometry * data_geos[3],
+    int & vert_index);
+
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
