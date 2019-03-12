@@ -192,6 +192,10 @@ void add_data_geos(std::vector<data_geometry *>& tris, const vec4& a,
 void copy_data_geos_data(const driver_state& state,
     const data_geometry& from, data_geometry& to);
 
+void copy_data_geos_data(const driver_state& state, 
+    const data_geometry * from[3], data_geometry * to[3], unsigned a,
+    unsigned b, unsigned c);
+
 // Convenience function to check if all vertices are inside
 bool all_inside(bool * inside);
 
