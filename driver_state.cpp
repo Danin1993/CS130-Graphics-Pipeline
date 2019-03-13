@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <climits>
 #include <cfloat>
+#include <vector>
 
 driver_state::driver_state()
 {
@@ -44,7 +45,6 @@ void render(driver_state& state, render_type type)
 {
     int triangles;
     int vert_index = 0;
-    std::cout<<"TODO: implement rendering."<<std::endl;
     
     data_geometry * data_geos = new data_geometry[VERT_PER_TRI];
 
@@ -53,22 +53,42 @@ void render(driver_state& state, render_type type)
         triangles = state.num_vertices / VERT_PER_TRI;
         
         for (int i = 0; i < triangles; i++) {
-            fill_data_geo(state, &data_geos, vert_index);
+            fill_data_geo_triangle(state, &data_geos, vert_index);
             calc_data_geo_pos(state, &data_geos);
-            rasterize_triangle(state, (const data_geometry **)(&data_geos));
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
         }
         break;
 
     case render_type::indexed:
-
+        for (int i = 0; i < state.num_triangles; i++) {
+            fill_data_geos_indexed(state, &data_geos, vert_index); 
+            calc_data_geo_pos(state, &data_geos);
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        }
         break;
 
     case render_type::fan:
-
+        triangles = state.num_vertices - 2;
+        vert_index = 1;
+        data_geos[0].data = state.vertex_data;
+        for (int i = 0; i < triangles; i++) {
+            fill_data_geos_fan(state, &data_geos, vert_index);
+            calc_data_geo_pos(state, &data_geos);
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        }       
         break;
 
     case render_type::strip:
-
+        triangles = state.num_vertices - 2;
+        // Prime the fill_data_geo_strip function
+        fill_data_geo_triangle(state, &data_geos, vert_index);
+        calc_data_geo_pos(state, &data_geos);
+        clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        for (int i = 1; i < triangles; i++) {
+            fill_data_geos_strip(state, &data_geos, vert_index, i);
+            calc_data_geo_pos(state, &data_geos);
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        }
         break;
 
     default:
@@ -85,13 +105,70 @@ void render(driver_state& state, render_type type)
 // simply pass the call on to rasterize_triangle.
 void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 {
+    std::vector<data_geometry *> tris;
+    int sign = 2 * (face % 2) - 1;
+    unsigned axis = face % 3;
+    bool inside[VERT_PER_TRI] = {0};
+
     if(face==6)
     {
+        //std::cout << "\n\nDEBUG: Drawing:\n";
+        //print_data_geos(in);
         rasterize_triangle(state, in);
         return;
+    } 
+    /*std::cout << "\n\nDEBUG: Axis: " << axis << "\nSign: " << sign
+        << std::endl;*/
+    
+    add_data_geos(state, tris, in);
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        // sign will always be either -1 or +1 depending on face
+        if (sign > 0) {
+            inside[i] = (*in)[i].gl_Position[axis] <=
+                (*in)[i].gl_Position[W];
+        }
+        if (sign < 0) {
+            inside[i] = (*in)[i].gl_Position[axis] >=
+                -1 * (*in)[i].gl_Position[W];
+        }
     }
-    std::cout<<"TODO: implement clipping. (The current code passes the triangle through without clipping them.)"<<std::endl;
-    clip_triangle(state,in,face+1);
+
+    // The triangle is completely outside of the plane so we don't need to
+    // do anything.
+    if (all_outside(inside)) { 
+        //std::cout << "DEBUG: All outside\n";
+        return; 
+    }
+
+    // If at least one vertex is inside, then we need to clip
+    if (!all_inside(inside) && !all_outside(inside)) {
+        // Two vertices outside: (A, B, C) where 1 is inside and 0 outside
+        if (inside[0] && !inside[1] && !inside[2]) { // (1, 0, 0)
+            create_triangle_2_out(tris, axis, sign, V_A, V_B, V_C, state);
+        } else if (!inside[0] && inside[1] && !inside[2]) { // (0, 1, 0)
+            create_triangle_2_out(tris, axis, sign, V_B, V_C, V_A, state);
+        } else if (!inside[0] && !inside[1] && inside[2]) { // (0, 0, 1)
+            create_triangle_2_out(tris, axis, sign, V_C, V_A, V_B, state);
+        }
+        // One vertex outside: (A, B, C) where 1 is inside and 0 outside
+        else if (!inside[0] && inside[1] && inside[2]) { // (0, 1, 1)
+            create_triangle_2_in(tris, axis, sign, V_A, V_B, V_C, state);
+        } else if (inside[0] && !inside[1] && inside[2]) { // (1, 0, 1)
+            create_triangle_2_in(tris, axis, sign, V_B, V_C, V_A, state);
+        } else if (inside[0] && inside[1] && !inside[2]) { // (1, 1, 0)
+            create_triangle_2_in(tris, axis, sign, V_C, V_A, V_B, state);
+        }
+    } else {
+        //std::cout << "DEBUG: All inside\n";
+    }
+
+    // Clip each triangle we've created against the next plane
+    for (unsigned i = 0; i < tris.size(); i++) {
+        clip_triangle(state,(const data_geometry **)(&(tris[i])),face+1);
+    }
+    
+    clear_data_geos(tris);
 }
 
 // Rasterize the triangle defined by the three vertices in the "in" array.  This
@@ -99,17 +176,18 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 {
+    unsigned pixel_index;
     // x and y correspond to the x and y pixel coordinates for each
     // vertex of the triangle.
-    int x[VERT_PER_TRI];
-    int y[VERT_PER_TRI];
+    float x[VERT_PER_TRI];
+    float y[VERT_PER_TRI];
 
     // z holds the perspective transformed z coordinates for each vertex
     float z[VERT_PER_TRI];
     float depth;
 
-    int min_x, min_y;
-    int max_x, max_y;
+    float min_x, min_y;
+    float max_x, max_y;
 
     
     // k0, k1, and k2 are the coefficients for the calculations of the
@@ -165,8 +243,8 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 
     // Iterate through each pixel and calculate the barycentric weights for
     // each.
-    for (int y = min_y; y < max_y + 1; y++) {
-        for (int x = min_x; x < max_x + 1; x++) {
+    for (int y = min_y + 1; y < max_y + 1; y++) {
+        for (int x = min_x + 1; x < max_x + 1; x++) {
             for (int vert = 0; vert < VERT_PER_TRI; vert++) {
                 // Calculation is not done doing the iterative approach
                 // We're multiplying every time to find the barycentric
@@ -177,15 +255,17 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 
             calc_z_coords(in, z);
             depth = calc_depth_at(z, bary);
+    
+            pixel_index = x + y * state.image_width;
 
             // Only draw if the pixel is inside the triangle and it is the
             // closest triangle to the camera
             if (is_pixel_inside(bary) && 
-                depth < state.image_depth[x + y * state.image_width]) {
+                depth < state.image_depth[pixel_index]) {
 
-                state.image_color[x + y * state.image_width] =
+                state.image_color[pixel_index] =
                     get_pixel_color(state, frag, in, bary);
-                state.image_depth[x + y * state.image_width] = depth;
+                state.image_depth[pixel_index] = depth;
             }
         }
     }
@@ -201,30 +281,65 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 /**************************************************************************/
 
 void set_render_black(driver_state& state) {
-    for (unsigned i = 0; i < state.image_len; i++) {
+    for (int i = 0; i < state.image_len; i++) {
         state.image_color[i] = make_pixel(0, 0, 0);
     }
 }
 
 void init_image_depth(driver_state& state) {
-    for (unsigned i = 0; i < state.image_len; i++) {
+    for (int i = 0; i < state.image_len; i++) {
         state.image_depth[i] = FLT_MAX;
     }
 }
 
 
 /**************************************************************************/
-/* Rasterize Triangle Helpers */
+/* Render Helpers */
 /**************************************************************************/
 
-void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
-    int & vert_index) {
+void fill_data_geo_triangle(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index) {
     
     for (int i = 0; i < VERT_PER_TRI; i++) {
         (*data_geos)[i].data = state.vertex_data + vert_index;
         vert_index += state.floats_per_vertex;
     }
     
+}
+
+void fill_data_geos_indexed(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index) {
+    
+    for (int i = 0; i < VERT_PER_TRI; i++) {
+        (*data_geos)[i].data = state.vertex_data 
+            + state.index_data[vert_index] * state.floats_per_vertex;
+        vert_index++;
+    }
+}
+
+void fill_data_geos_fan(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index) {
+
+    for (int i = 1; i < VERT_PER_TRI; i++) {
+        (*data_geos)[i].data = state.vertex_data + (vert_index
+            * state.floats_per_vertex);
+        vert_index++;
+    }
+    vert_index--;
+}
+
+void fill_data_geos_strip(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index, int iteration) {
+    
+    if (iteration % 2) {
+        (*data_geos)[V_A].data = (*data_geos)[V_B].data;
+        (*data_geos)[V_B].data = state.vertex_data + vert_index;
+    } else {
+        (*data_geos)[V_A].data = (*data_geos)[V_C].data;
+        (*data_geos)[V_C].data = state.vertex_data + vert_index;
+    }
+
+    vert_index += state.floats_per_vertex;
 }
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
@@ -235,21 +350,25 @@ void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
     }
 }
 
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
+
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo, 
-    int& i, int& j) {
+    float & i, float & j) {
     
     static const float w2 = state.image_width / 2.0f;
     static const float h2 = state.image_height / 2.0f;
     
     // The conversion to homogeneous coords happens here.
-    i = (int)(w2 * data_geo.gl_Position[X] / data_geo.gl_Position[W]
+    i = (w2 * data_geo.gl_Position[X] / data_geo.gl_Position[W]
         + (w2 - .5f));
-    j = (int)(h2 * data_geo.gl_Position[Y] / data_geo.gl_Position[W]
+    j = (h2 * data_geo.gl_Position[Y] / data_geo.gl_Position[W]
         + (h2 - .5f));
 }
 
-void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
-     int& min_y) {
+void calc_min_coord(const driver_state& state, float * x, float * y,
+    float & min_x, float & min_y) {
     
     // The maximum pixel coord we can have is (width - 1, height - 1), so
     // set the starting values to those
@@ -263,12 +382,12 @@ void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
 
     // The minimum pixel coord we can have is (0, 0) so if either min_x or 
     // min_y are negative we set them to 0.
-    min_x = std::max(min_x, 0);
-    min_y = std::max(min_y, 0);
+    min_x = std::max(min_x, 0.0f);
+    min_y = std::max(min_y, 0.0f);
 }
 
-void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
-    int& max_y) {
+void calc_max_coord(const driver_state& state, float * x, float * y,
+    float & max_x, float & max_y) {
     
     // The minimum pixel coord we can have is (0, 0), so set the starting
     // value to 0, 0; 
@@ -282,8 +401,8 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
 
     // The maximum pixel coord we can have is (width, height) so if either 
     // min_x or max_y are greater then we set them accordingly.
-    max_x = std::min(max_x, state.image_width - 1);
-    max_y = std::min(max_y, state.image_height - 1);
+    max_x = std::min(max_x, state.image_width - 1.0f);
+    max_y = std::min(max_y, state.image_height - 1.0f);
 }
 
 bool is_pixel_inside(float * bary_weights) {
@@ -306,11 +425,6 @@ pixel get_pixel_color(driver_state& state, data_fragment& frag,
     
     float world_bary[VERT_PER_TRI];
     data_output out;
-
-/*
-    // Allocate an array to hold the interpolated data
-    frag.data = new float[MAX_FLOATS_PER_VERTEX];
-*/
 
     // For each float in the vertex we have to interpolate data depending
     // on the interp_rule associated with it.
@@ -349,11 +463,6 @@ pixel get_pixel_color(driver_state& state, data_fragment& frag,
     // Call our fragment shader with the data we just interpolated
     state.fragment_shader(frag, out, state.uniform_data);
 
-/*
-    // Don't forget to delete our allocated memory!
-    delete[] frag.data;
-*/  
-  
     // Multiply the output by C_MAX (255) because output_color returns a
     // value [0, 1]
     return make_pixel(out.output_color[C_R] * C_MAX, out.output_color[C_G] 
@@ -407,4 +516,281 @@ float calc_depth_at(float * z, float * bary) {
     }
 
     return ret;
+}
+
+
+/**************************************************************************/
+/* Clipping */
+/**************************************************************************/
+void clear_data_geos(std::vector<data_geometry *>& tris) {
+    for (unsigned i = 0; i < tris.size(); i++) {
+        remove_data_geo(i, tris);
+    }
+
+    tris.clear();
+}
+
+void remove_data_geo(unsigned index, std::vector<data_geometry *>& tris) {
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        delete[] tris[index][i].data;
+    }
+    delete[] tris[index];
+    tris.erase(tris.begin() + index);
+}
+
+void add_data_geos(const driver_state& state, 
+    std::vector<data_geometry *>& tris, 
+    const data_geometry * data_geos[3]) {
+
+    tris.push_back(new data_geometry[VERT_PER_TRI]);
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        tris[tris.size() - 1][i].data = new float[MAX_FLOATS_PER_VERTEX];
+        for (unsigned j = 0; j < DATA_PER_COORD; j++) {
+            tris[tris.size() - 1][i].gl_Position[j] =
+                (*data_geos)[i].gl_Position[j];
+        }
+
+        copy_data_geos_data(state, (*data_geos)[i],
+            tris[tris.size() - 1][i]);
+    }
+}
+
+void add_data_geos(std::vector<data_geometry *>& tris, const vec4& a, 
+    const vec4& b, const vec4& c) {
+
+    data_geometry * geos = new data_geometry[VERT_PER_TRI];
+
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        geos[i].data = new float[MAX_FLOATS_PER_VERTEX];
+    }
+
+    geos[V_A].gl_Position = a;
+    geos[V_B].gl_Position = b;
+    geos[V_C].gl_Position = c;
+
+    tris.push_back(geos);
+}
+
+void copy_data_geos_data(const driver_state& state,
+    const data_geometry& from, data_geometry& to) {
+
+    for (int i = 0; i < state.floats_per_vertex; i++) {
+        to.data[i] = from.data[i];
+    }
+}
+
+void copy_data_geos_data(const driver_state& state, 
+    const data_geometry * from[3], data_geometry * to[3], unsigned a,
+    unsigned b, unsigned c) {
+
+    copy_data_geos_data(state, (*from)[a], (*to)[V_A]);
+    copy_data_geos_data(state, (*from)[b], (*to)[V_B]);
+    copy_data_geos_data(state, (*from)[c], (*to)[V_C]);
+}
+
+bool all_inside(bool * inside) {
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        if (!inside[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool all_outside(bool * inside) {
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        if (inside[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void create_triangle_2_out(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned in_index, unsigned out0_index,
+    unsigned out1_index, const driver_state& state) {
+    
+    data_geometry a = tris[0][in_index];
+    data_geometry b = tris[0][out0_index];
+    data_geometry c = tris[0][out1_index];
+
+    float b_numer = sign * b.gl_Position[W] - b.gl_Position[axis];
+    float ab_weight = b_numer / ((a.gl_Position[axis]
+        - sign * a.gl_Position[W]) + b_numer);
+    float c_numer = sign * c.gl_Position[W] - c.gl_Position[axis];
+    float ac_weight = c_numer / ((a.gl_Position[axis] 
+        - sign * a.gl_Position[W]) + c_numer);
+
+    float ab_nop_weight = ab_weight * tris[0][in_index].gl_Position[W]
+                * calc_noperspective_weight(ab_weight, 
+                    tris[0][in_index].gl_Position[W], 
+                    tris[0][out0_index].gl_Position[W]);
+    float ac_nop_weight = ac_weight * tris[0][in_index].gl_Position[W]
+                * calc_noperspective_weight(ac_weight,
+                    tris[0][in_index].gl_Position[W],
+                    tris[0][out1_index].gl_Position[W]);
+
+    vec4 ab = ab_weight * a.gl_Position + (1 - ab_weight) * b.gl_Position;
+    vec4 ac = ac_weight * a.gl_Position + (1 - ac_weight) * c.gl_Position;
+
+    /*std::cout << "DEBUG: 2-out"
+        << "\nOriginal:\nA: " << a.gl_Position << "\nB: " << b.gl_Position
+        << "\nC: " << c.gl_Position << std::endl;*/
+
+    add_data_geos(tris, a.gl_Position, ab, ac);
+    copy_data_geos_data(state, (const data_geometry **)(&(tris[0])),
+        &(tris[1]), in_index, out0_index, out1_index);
+    //std::cout << "\nTri 1\n";
+    //print_data_geos((const data_geometry **)(&tris[tris.size() - 1]));
+
+
+    // All interp_types copy the inside index to the a vertex
+    copy_data_geos_data(state, tris[0][in_index], tris[1][V_A]);
+    
+    for (int i = 0; i < state.floats_per_vertex; i++) {
+        switch (state.interp_rules[i]) {
+        case interp_type::flat:
+            for (unsigned j = 1; j < VERT_PER_TRI; j++) {
+                tris[1][j].data[i] = tris[0][in_index].data[i];
+            }
+            break;
+    
+        case interp_type::smooth:
+            tris[1][V_B].data[i] = interpolate_data(ab_weight,
+                tris[0][in_index].data[i], tris[0][out0_index].data[i]);
+                
+            tris[1][V_C].data[i] = interpolate_data(ac_weight,
+                tris[0][in_index].data[i], tris[0][out1_index].data[i]);
+            break;
+
+        case interp_type::noperspective:
+            tris[1][V_B].data[i] = interpolate_data(ab_nop_weight,
+                tris[0][in_index].data[i], tris[0][out0_index].data[i]);
+                
+            tris[1][V_C].data[i] = interpolate_data(ac_nop_weight,
+                tris[0][in_index].data[i], tris[0][out1_index].data[i]);
+            break;
+
+        default:
+            std::cerr << "ERROR: Invalid interp_type specified.\n";
+            break;
+        }
+    }
+    remove_data_geo(0, tris);
+}
+
+void create_triangle_2_in(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned out_index, unsigned in0_index,
+    unsigned in1_index, const driver_state& state) {
+
+    
+    data_geometry a = tris[0][out_index];
+    data_geometry b = tris[0][in0_index];
+    data_geometry c = tris[0][in1_index];
+
+    float b_numer = sign * b.gl_Position[W] - b.gl_Position[axis];
+    float ab_weight = b_numer / ((a.gl_Position[axis]
+        - sign * a.gl_Position[W]) + b_numer);
+    float c_numer = sign * c.gl_Position[W] - c.gl_Position[axis];
+    float ac_weight = c_numer / ((a.gl_Position[axis] 
+        - sign * a.gl_Position[W]) + c_numer);
+
+    float ab_nop_weight = ab_weight * tris[0][out_index].gl_Position[W]
+                * calc_noperspective_weight(ab_weight, 
+                    tris[0][out_index].gl_Position[W], 
+                    tris[0][in0_index].gl_Position[W]);
+    float ac_nop_weight = ac_weight * tris[0][out_index].gl_Position[W]
+                * calc_noperspective_weight(ac_weight,
+                    tris[0][out_index].gl_Position[W],
+                    tris[0][in1_index].gl_Position[W]);
+
+
+    vec4 ab = ab_weight * a.gl_Position + (1 - ab_weight) * b.gl_Position;
+    vec4 ac = ac_weight * a.gl_Position + (1 - ac_weight) * c.gl_Position;
+
+    /*std::cout << "\n\nDEBUG: 2-in"
+        << "\nOriginal:\nA: " << a.gl_Position << "\nB: " << b.gl_Position
+        << "\nC: " << c.gl_Position << std::endl;*/
+
+    add_data_geos(tris, ac, b.gl_Position, c.gl_Position);
+    copy_data_geos_data(state, (const data_geometry **)(&(tris[0])),
+        &(tris[1]), out_index, in0_index, in1_index);
+    //std::cout << "\nTri 1\n";
+    //print_data_geos((const data_geometry **)(&tris[tris.size() - 1]));
+
+    add_data_geos(tris, ab, b.gl_Position, ac);
+    copy_data_geos_data(state, (const data_geometry **)(&(tris[0])),
+        &(tris[2]), out_index, in0_index, in1_index);
+    //std::cout << "\nTri 2\n";
+    //print_data_geos((const data_geometry **)(&tris[tris.size() - 1]));
+        
+    for (int i = 0; i < state.floats_per_vertex; i++) {
+        switch (state.interp_rules[i]) {
+        case interp_type::flat:
+            for (unsigned j = 1; j < VERT_PER_TRI; j++) {
+                tris[1][j].data[i] = tris[0][out_index].data[i];
+                tris[2][j].data[i] = tris[0][out_index].data[i];
+            }
+            break;
+    
+        case interp_type::smooth:
+            tris[1][V_A].data[i] = interpolate_data(ac_weight,
+                tris[0][out_index].data[i], tris[0][in1_index].data[i]);
+
+            tris[2][V_A].data[i] = interpolate_data(ab_weight,
+                tris[0][out_index].data[i], tris[0][in0_index].data[i]);
+            // Vertex a of triangle 1 and vertec c of triangle 2 are the 
+            // same point so they share the same interpolated data
+            tris[2][V_C].data[i] = tris[1][V_A].data[i];
+            break;
+
+        case interp_type::noperspective:
+            /*std::cout << "\n\nDEBUG: noperspective interpolation "
+                << (i == 3 ? "R" : (i == 4 ? "G" : "B")) << ":\n";*/
+
+            tris[1][V_A].data[i] = interpolate_data(ac_nop_weight,
+                tris[0][out_index].data[i], tris[0][in1_index].data[i]);
+            
+            /*std::cout << "Tri 0 (A, C): (" << tris[0][out_index].data[i]
+                << ", " << tris[0][in1_index].data[i] << ")\n";
+            std::cout << "Tri 1 A and Tri 2 C: " << tris[1][V_A].data[i]
+                << std::endl;
+            std::cout << "Weight: " << ac_nop_weight << std::endl;*/
+                
+            tris[2][V_A].data[i] = interpolate_data(ab_nop_weight,
+                tris[0][out_index].data[i], tris[0][in0_index].data[i]);
+            /*std::cout << "Tri 0 (A, B): (" << tris[0][out_index].data[i]
+                << ", " << tris[0][in0_index].data[i] << ")\n";
+            std::cout << "Tri 2 A: " << tris[1][V_A].data[i] << std::endl;
+            std::cout << "Weight: " << ac_nop_weight << std::endl;*/
+
+
+            // Vertex a of triangle 1 and vertec c of triangle 2 are the 
+            // same point so they share the same interpolated data
+            tris[2][V_C].data[i] = tris[1][V_A].data[i];
+            break;
+
+        default:
+            std::cerr << "ERROR: Invalid interp_type specified.\n";
+            break;
+        }
+    }
+    remove_data_geo(0, tris);
+}
+
+float interpolate_data(float weight, float data0, float data1) {
+    return weight * data0 + (1 - weight) * data1;
+}
+
+float calc_noperspective_weight(float weight, float a_w, float p_w) {
+    return 1.0f / (weight * a_w + (1 - weight) * p_w);
+}
+
+void print_data_geos(const data_geometry * data_geos[3]) {
+    for (unsigned i = 0; i < VERT_PER_TRI; i++) {
+        std::cout << (!i ? "A" : (i == 1 ? "B" : "C")) << ": "
+            << (*data_geos)[i].gl_Position << std::endl;
+    }
 }

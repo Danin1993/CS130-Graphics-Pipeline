@@ -1,6 +1,7 @@
 #ifndef __DRIVER__
 #define __DRIVER__
 #include "common.h"
+#include <vector>
 
 struct driver_state
 {
@@ -114,26 +115,40 @@ void init_image_depth(driver_state& state);
 
 
 /**************************************************************************/
-/* Rasterize Triangle Helpers */
+/* Render Helpers */
 /**************************************************************************/
 
-// Fill data geometry array with pointers to vertecies from driver_state's
-// vertex_data array
-void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
-    int & vert_index);
+// The following 4 functions fill data geometry array with pointers to
+// vertecies from driver_state's vertex_data array
+// The way they do this is specified by their render_type suffix
+void fill_data_geo_triangle(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
+
+void fill_data_geos_indexed(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
+
+void fill_data_geos_fan(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
+
+void fill_data_geos_strip(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index, int iteration);
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
+
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
-    int& i, int& j);
+    float & i, float & j);
 
 // Calculates the minimum x and y pixel coordinates for the given triangle
-void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
-    int& min_y);
+void calc_min_coord(const driver_state& state, float * x, float * y, 
+    float & min_x, float & min_y);
 
 // Calculates the maximum x and y pixel coordinates for the given triangle
-void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
-    int& max_y);
+void calc_max_coord(const driver_state& state, float * x, float * y,
+    float & max_x, float& max_y);
 
 bool is_pixel_inside(float * bary_weights);
 
@@ -163,5 +178,55 @@ void convert_from_screen(float * screen_bary, float * world_bary,
 void calc_z_coords(const data_geometry * data_geos[3], float * z);
 
 float calc_depth_at(float * z, float * bary);
+
+
+/**************************************************************************/
+/* Clipping */
+/**************************************************************************/
+// Calls remove_data_geo on each index, then clears the vector.
+void clear_data_geos(std::vector<data_geometry *>& tris);
+
+// Deletes the allocated data array for each geometry, then deletes the
+// data_geometry array at the specified index
+void remove_data_geo(unsigned index, std::vector<data_geometry *>& tris);
+
+// Add a new data_geometry array to the vector using data from the data_geos
+// Data is copied.
+void add_data_geos(const driver_state& state,
+    std::vector<data_geometry *>& tris, const data_geometry * data_geos[3]);
+
+// Add a new data_geometry array to the vector from 3 gl_Positions
+void add_data_geos(std::vector<data_geometry *>& tris, const vec4& a, 
+    const vec4& b, const vec4& c);
+
+// Copy each float from one data_geometry's data to another
+void copy_data_geos_data(const driver_state& state,
+    const data_geometry& from, data_geometry& to);
+
+void copy_data_geos_data(const driver_state& state, 
+    const data_geometry * from[3], data_geometry * to[3], unsigned a,
+    unsigned b, unsigned c);
+
+// Convenience function to check if all vertices are inside
+bool all_inside(bool * inside);
+
+// Convenience function to check if all vertices are outside
+bool all_outside(bool * inside);
+
+// Create a new triangle with two vertices outside of the plane 
+void create_triangle_2_out(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned in_index, unsigned out0_index,
+    unsigned out1_index, const driver_state& state);
+
+// Create two new triangle with two vertices inside of the plane
+void create_triangle_2_in(std::vector<data_geometry *>& tris,
+    unsigned axis, int sign, unsigned out_index, unsigned in0_index,
+    unsigned in1_index, const driver_state& state);
+
+float interpolate_data(float weight, float data0, float data1);
+
+float calc_noperspective_weight(float weight, float a_w, float p_w);
+
+void print_data_geos(const data_geometry * data_geos[3]);
 
 #endif

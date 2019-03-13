@@ -31,6 +31,7 @@ static const int MAX_FLOATS_PER_VERTEX = 64;
 // The number of vertices in a triangle. Unless the rules of geometry change
 // this will always be 3.
 #define VERT_PER_TRI 3
+#define DATA_PER_COORD 4
 
 // Macros that represent each coordinate of a vec
 #define X 0
