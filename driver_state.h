@@ -115,7 +115,7 @@ void init_image_depth(driver_state& state);
 
 
 /**************************************************************************/
-/* Rasterize Triangle Helpers */
+/* Render Helpers */
 /**************************************************************************/
 
 // The following 4 functions fill data geometry array with pointers to
@@ -133,23 +133,22 @@ void fill_data_geos_fan(const driver_state& state,
 void fill_data_geos_strip(const driver_state& state,
     data_geometry * data_geos[3], int & vert_index, int iteration);
 
-// Fill the first three data geometries so the rest of the strip rendering
-// can take place
-void prime_data_geos_strip(const driver_state& state,
-    data_geometry * data_geos[3]);
-
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
+
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo,
-    int& i, int& j);
+    float & i, float & j);
 
 // Calculates the minimum x and y pixel coordinates for the given triangle
-void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
-    int& min_y);
+void calc_min_coord(const driver_state& state, float * x, float * y, 
+    float & min_x, float & min_y);
 
 // Calculates the maximum x and y pixel coordinates for the given triangle
-void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
-    int& max_y);
+void calc_max_coord(const driver_state& state, float * x, float * y,
+    float & max_x, float& max_y);
 
 bool is_pixel_inside(float * bary_weights);
 

@@ -176,17 +176,18 @@ void clip_triangle(driver_state& state, const data_geometry* in[3],int face)
 // fragments, calling the fragment shader, and z-buffering.
 void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 {
+    unsigned pixel_index;
     // x and y correspond to the x and y pixel coordinates for each
     // vertex of the triangle.
-    int x[VERT_PER_TRI];
-    int y[VERT_PER_TRI];
+    float x[VERT_PER_TRI];
+    float y[VERT_PER_TRI];
 
     // z holds the perspective transformed z coordinates for each vertex
     float z[VERT_PER_TRI];
     float depth;
 
-    int min_x, min_y;
-    int max_x, max_y;
+    float min_x, min_y;
+    float max_x, max_y;
 
     
     // k0, k1, and k2 are the coefficients for the calculations of the
@@ -254,15 +255,17 @@ void rasterize_triangle(driver_state& state, const data_geometry* in[3])
 
             calc_z_coords(in, z);
             depth = calc_depth_at(z, bary);
+    
+            pixel_index = x + y * state.image_width;
 
             // Only draw if the pixel is inside the triangle and it is the
             // closest triangle to the camera
             if (is_pixel_inside(bary) && 
-                depth < state.image_depth[x + y * state.image_width]) {
+                depth < state.image_depth[pixel_index]) {
 
-                state.image_color[x + y * state.image_width] =
+                state.image_color[pixel_index] =
                     get_pixel_color(state, frag, in, bary);
-                state.image_depth[x + y * state.image_width] = depth;
+                state.image_depth[pixel_index] = depth;
             }
         }
     }
@@ -291,7 +294,7 @@ void init_image_depth(driver_state& state) {
 
 
 /**************************************************************************/
-/* Rasterize Triangle Helpers */
+/* Render Helpers */
 /**************************************************************************/
 
 void fill_data_geo_triangle(const driver_state& state,
@@ -347,21 +350,25 @@ void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {
     }
 }
 
+/**************************************************************************/
+/* Rasterize Triangle Helpers */
+/**************************************************************************/
+
 void calc_pixel_coords(driver_state& state, const data_geometry& data_geo, 
-    int& i, int& j) {
+    float & i, float & j) {
     
     static const float w2 = state.image_width / 2.0f;
     static const float h2 = state.image_height / 2.0f;
     
     // The conversion to homogeneous coords happens here.
-    i = (int)(w2 * data_geo.gl_Position[X] / data_geo.gl_Position[W]
+    i = (w2 * data_geo.gl_Position[X] / data_geo.gl_Position[W]
         + (w2 - .5f));
-    j = (int)(h2 * data_geo.gl_Position[Y] / data_geo.gl_Position[W]
+    j = (h2 * data_geo.gl_Position[Y] / data_geo.gl_Position[W]
         + (h2 - .5f));
 }
 
-void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
-     int& min_y) {
+void calc_min_coord(const driver_state& state, float * x, float * y,
+    float & min_x, float & min_y) {
     
     // The maximum pixel coord we can have is (width - 1, height - 1), so
     // set the starting values to those
@@ -375,12 +382,12 @@ void calc_min_coord(const driver_state& state, int * x, int * y, int& min_x,
 
     // The minimum pixel coord we can have is (0, 0) so if either min_x or 
     // min_y are negative we set them to 0.
-    min_x = std::max(min_x, 0);
-    min_y = std::max(min_y, 0);
+    min_x = std::max(min_x, 0.0f);
+    min_y = std::max(min_y, 0.0f);
 }
 
-void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
-    int& max_y) {
+void calc_max_coord(const driver_state& state, float * x, float * y,
+    float & max_x, float & max_y) {
     
     // The minimum pixel coord we can have is (0, 0), so set the starting
     // value to 0, 0; 
@@ -394,8 +401,8 @@ void calc_max_coord(const driver_state& state, int * x, int * y, int& max_x,
 
     // The maximum pixel coord we can have is (width, height) so if either 
     // min_x or max_y are greater then we set them accordingly.
-    max_x = std::min(max_x, state.image_width - 1);
-    max_y = std::min(max_y, state.image_height - 1);
+    max_x = std::min(max_x, state.image_width - 1.0f);
+    max_y = std::min(max_y, state.image_height - 1.0f);
 }
 
 bool is_pixel_inside(float * bary_weights) {
