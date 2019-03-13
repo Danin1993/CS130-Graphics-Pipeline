@@ -53,7 +53,7 @@ void render(driver_state& state, render_type type)
         triangles = state.num_vertices / VERT_PER_TRI;
         
         for (int i = 0; i < triangles; i++) {
-            fill_data_geo(state, &data_geos, vert_index);
+            fill_data_geo_triangle(state, &data_geos, vert_index);
             calc_data_geo_pos(state, &data_geos);
             clip_triangle(state, (const data_geometry **)(&data_geos), 0);
         }
@@ -80,7 +80,8 @@ void render(driver_state& state, render_type type)
 
     case render_type::strip:
         triangles = state.num_vertices - 2;
-        fill_data_geo(state, &data_geos, vert_index);
+        // Prime the fill_data_geo_strip function
+        fill_data_geo_triangle(state, &data_geos, vert_index);
         calc_data_geo_pos(state, &data_geos);
         clip_triangle(state, (const data_geometry **)(&data_geos), 0);
         for (int i = 1; i < triangles; i++) {
@@ -293,8 +294,8 @@ void init_image_depth(driver_state& state) {
 /* Rasterize Triangle Helpers */
 /**************************************************************************/
 
-void fill_data_geo(const driver_state& state, data_geometry * data_geos[3], 
-    int & vert_index) {
+void fill_data_geo_triangle(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index) {
     
     for (int i = 0; i < VERT_PER_TRI; i++) {
         (*data_geos)[i].data = state.vertex_data + vert_index;

@@ -121,8 +121,8 @@ void init_image_depth(driver_state& state);
 // The following 4 functions fill data geometry array with pointers to
 // vertecies from driver_state's vertex_data array
 // The way they do this is specified by their render_type suffix
-void fill_data_geo(const driver_state& state, data_geometry * data_geos[3],
-    int & vert_index);
+void fill_data_geo_triangle(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
 
 void fill_data_geos_indexed(const driver_state& state,
     data_geometry * data_geos[3], int & vert_index);
