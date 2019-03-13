@@ -45,7 +45,6 @@ void render(driver_state& state, render_type type)
 {
     int triangles;
     int vert_index = 0;
-    std::cout<<"TODO: implement rendering."<<std::endl;
     
     data_geometry * data_geos = new data_geometry[VERT_PER_TRI];
 
@@ -80,7 +79,15 @@ void render(driver_state& state, render_type type)
         break;
 
     case render_type::strip:
-
+        triangles = state.num_vertices - 2;
+        fill_data_geo(state, &data_geos, vert_index);
+        calc_data_geo_pos(state, &data_geos);
+        clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        for (int i = 1; i < triangles; i++) {
+            fill_data_geos_strip(state, &data_geos, vert_index, i);
+            calc_data_geo_pos(state, &data_geos);
+            clip_triangle(state, (const data_geometry **)(&data_geos), 0);
+        }
         break;
 
     default:
@@ -286,7 +293,7 @@ void init_image_depth(driver_state& state) {
 /* Rasterize Triangle Helpers */
 /**************************************************************************/
 
-void fill_data_geo(driver_state& state, data_geometry * data_geos[3], 
+void fill_data_geo(const driver_state& state, data_geometry * data_geos[3], 
     int & vert_index) {
     
     for (int i = 0; i < VERT_PER_TRI; i++) {
@@ -296,7 +303,7 @@ void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
     
 }
 
-void fill_data_geos_indexed(driver_state& state,
+void fill_data_geos_indexed(const driver_state& state,
     data_geometry * data_geos[3], int & vert_index) {
     
     for (int i = 0; i < VERT_PER_TRI; i++) {
@@ -306,8 +313,8 @@ void fill_data_geos_indexed(driver_state& state,
     }
 }
 
-void fill_data_geos_fan(driver_state& state, data_geometry * data_geos[3],
-    int & vert_index) {
+void fill_data_geos_fan(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index) {
 
     for (int i = 1; i < VERT_PER_TRI; i++) {
         (*data_geos)[i].data = state.vertex_data + (vert_index
@@ -315,6 +322,20 @@ void fill_data_geos_fan(driver_state& state, data_geometry * data_geos[3],
         vert_index++;
     }
     vert_index--;
+}
+
+void fill_data_geos_strip(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index, int iteration) {
+    
+    if (iteration % 2) {
+        (*data_geos)[V_A].data = (*data_geos)[V_B].data;
+        (*data_geos)[V_B].data = state.vertex_data + vert_index;
+    } else {
+        (*data_geos)[V_A].data = (*data_geos)[V_C].data;
+        (*data_geos)[V_C].data = state.vertex_data + vert_index;
+    }
+
+    vert_index += state.floats_per_vertex;
 }
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]) {

@@ -118,16 +118,25 @@ void init_image_depth(driver_state& state);
 /* Rasterize Triangle Helpers */
 /**************************************************************************/
 
-// Fill data geometry array with pointers to vertecies from driver_state's
-// vertex_data array
-void fill_data_geo(driver_state& state, data_geometry * data_geos[3],
+// The following 4 functions fill data geometry array with pointers to
+// vertecies from driver_state's vertex_data array
+// The way they do this is specified by their render_type suffix
+void fill_data_geo(const driver_state& state, data_geometry * data_geos[3],
     int & vert_index);
 
-void fill_data_geos_indexed(driver_state& state,
+void fill_data_geos_indexed(const driver_state& state,
     data_geometry * data_geos[3], int & vert_index);
 
-void fill_data_geos_fan(driver_state& state, data_geometry * data_geos[3],
-    int & vert_index);
+void fill_data_geos_fan(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index);
+
+void fill_data_geos_strip(const driver_state& state,
+    data_geometry * data_geos[3], int & vert_index, int iteration);
+
+// Fill the first three data geometries so the rest of the strip rendering
+// can take place
+void prime_data_geos_strip(const driver_state& state,
+    data_geometry * data_geos[3]);
 
 void calc_data_geo_pos(driver_state& state, data_geometry * data_geos[3]);
 
